@@ -64,4 +64,32 @@ describe('Routes', () => {
     expect(recipe).toBeDefined();
     expect(recipe.title).toBe(newRecipe.title);
   });
+
+  test('POST /recipes/:id/delete should remove the recipe', async () => {
+    const recipe = {
+      title: 'Recipe to Delete',
+      ingredients: 'Ingredient 1',
+      method: 'Step 1'
+    };
+
+    await db.run('INSERT INTO recipes (title, ingredients, method) VALUES (?, ?, ?)', [recipe.title, recipe.ingredients, recipe.method]);
+    const createdRecipe = await db.get('SELECT * FROM recipes WHERE title = ?', [recipe.title]);
+
+    const response = await request(app)
+      .post(`/recipes/${createdRecipe.id}/delete`);
+
+    expect(response.status).toBe(302);
+    expect(response.headers.location).toBe('/recipes');
+
+    const deletedRecipe = await db.get('SELECT * FROM recipes WHERE id = ?', [createdRecipe.id]);
+    expect(deletedRecipe).toBeUndefined();
+  });
+
+  test('recipe template includes delete buttons in both the view and edit states', async () => {
+    const recipeTemplate = require('fs').readFileSync(require('path').join(__dirname, '../views/recipe.hbs'), 'utf8');
+
+    expect(recipeTemplate).toContain('action="/recipes/{{recipe.id}}/delete"');
+    expect(recipeTemplate).toContain('Delete Recipe');
+    expect((recipeTemplate.match(/action="\/recipes\/\{\{recipe\.id\}\}\/delete"/g) || []).length).toBeGreaterThanOrEqual(2);
+  });
 });
